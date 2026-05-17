@@ -1,4 +1,4 @@
-from app.cpf import format_cpf, is_valid, mask, normalize, region
+from app.cpf import format_cpf, generate, is_valid, mask, normalize, region
 
 
 def test_normalize_strips_non_digits():
@@ -35,3 +35,16 @@ def test_mask_hides_first_block_and_check_digits():
 
 def test_region_returns_state_group():
     assert region("11144477735") is not None
+
+
+def test_generate_returns_valid_cpf():
+    for _ in range(20):
+        cpf = generate()
+        assert is_valid(cpf)
+
+
+def test_generate_respects_region_digit():
+    for digit in range(10):
+        cpf = generate(region_digit=digit)
+        assert is_valid(cpf)
+        assert normalize(cpf)[8] == str(digit)

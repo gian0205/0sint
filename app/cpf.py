@@ -1,6 +1,7 @@
 """CPF utilities: normalization, validation, formatting."""
 from __future__ import annotations
 
+import random
 import re
 
 
@@ -38,6 +39,20 @@ def is_valid(cpf: str) -> bool:
     d1 = _check_digit(c[:9], range(10, 1, -1))
     d2 = _check_digit(c[:10], range(11, 1, -1))
     return c[9] == str(d1) and c[10] == str(d2)
+
+
+def generate(region_digit: int | None = None) -> str:
+    """Generate a syntactically valid CPF for testing.
+
+    Optional `region_digit` (0-9) forces the 9th digit (fiscal region selector).
+    Returned value is formatted (xxx.xxx.xxx-xx).
+    """
+    base = [random.randint(0, 9) for _ in range(8)]
+    base.append(region_digit if region_digit is not None else random.randint(0, 9))
+    base_str = "".join(str(d) for d in base)
+    d1 = _check_digit(base_str, range(10, 1, -1))
+    d2 = _check_digit(base_str + str(d1), range(11, 1, -1))
+    return format_cpf(base_str + str(d1) + str(d2))
 
 
 def region(cpf: str) -> str | None:

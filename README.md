@@ -78,8 +78,20 @@ pip install -r requirements.txt
 
 ```bash
 uvicorn app.main:app --reload
-# http://localhost:8000/docs  (Swagger)
 ```
+
+Abra no navegador:
+- `http://localhost:8000/` — UI de teste (formulário simples, sem curl)
+- `http://localhost:8000/docs` — Swagger interativo
+- `http://localhost:8000/generate?count=5` — gera CPFs sintaticamente válidos para teste
+
+### Modo gratuito (zero custo, zero credencial externa)
+
+As fontes que funcionam totalmente offline/grátis:
+- `validator` — algoritmo (dígitos + região fiscal)
+- `manual_links` — gera URLs de busca (Google dorks, DuckDuckGo, portais públicos)
+
+As demais retornam `requires_manual_verification` com a URL para abrir manualmente.
 
 ### Fluxo completo via curl
 

@@ -12,6 +12,29 @@ def test_health():
     assert r.status_code == 200
 
 
+def test_index_returns_html():
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "text/html" in r.headers["content-type"]
+    assert "0sint" in r.text
+
+
+def test_generate_returns_valid_cpfs():
+    from app.cpf import is_valid
+
+    r = client.get("/generate?count=5")
+    assert r.status_code == 200
+    cpfs = r.json()["cpfs"]
+    assert len(cpfs) == 5
+    for cpf in cpfs:
+        assert is_valid(cpf)
+
+
+def test_generate_clamps_count():
+    r = client.get("/generate?count=999")
+    assert len(r.json()["cpfs"]) <= 50
+
+
 def test_list_sources():
     r = client.get("/sources")
     assert r.status_code == 200

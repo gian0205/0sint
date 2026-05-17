@@ -2,13 +2,16 @@
 from __future__ import annotations
 
 from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi.responses import HTMLResponse
 
 from .aggregator import aggregate
 from .config import settings
+from .cpf import generate as generate_cpf
 from .models import LookupRequest, LookupResponse, TokenRequest, TokenResponse
 from .ratelimit import RateLimiter
 from .security import current_operator, issue_token
 from .sources import REGISTRY
+from .ui import INDEX_HTML
 
 
 app = FastAPI(
@@ -24,9 +27,21 @@ app = FastAPI(
 rate_limiter = RateLimiter(per_minute=settings.rate_limit_per_minute)
 
 
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def index() -> str:
+    return INDEX_HTML
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/generate")
+async def generate(count: int = 1) -> dict[str, list[str]]:
+    """Generate test CPFs (syntactically valid). Use only for testing/QA."""
+    count = max(1, min(count, 50))
+    return {"cpfs": [generate_cpf() for _ in range(count)]}
 
 
 @app.get("/sources")
