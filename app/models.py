@@ -30,10 +30,20 @@ class LookupRequest(BaseModel):
     cpf: str = Field(..., description="CPF (com ou sem máscara)")
     purpose: Purpose = Field(..., description="Finalidade da consulta (LGPD)")
     case_id: str | None = Field(None, description="Identificador do caso/ticket para trilha de auditoria")
-    operator: str = Field(..., description="Identificação do operador/investigador responsável")
     sources: list[str] | None = Field(
         None, description="Subconjunto de fontes a consultar; None = todas habilitadas"
     )
+
+
+class TokenRequest(BaseModel):
+    operator: str = Field(..., description="Identificação do operador/investigador")
+    admin_token: str = Field(..., description="Segredo administrativo para emitir token")
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_at: datetime
 
 
 class SourceResult(BaseModel):
@@ -54,3 +64,4 @@ class LookupResponse(BaseModel):
     operator: str
     case_id: str | None
     results: list[SourceResult]
+    cached: bool = False

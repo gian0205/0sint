@@ -12,9 +12,13 @@ Sistema de consulta de CPF que agrega múltiplas fontes OSINT brasileiras, basea
 
 ```
 app/
-├── main.py           FastAPI: /health, /sources, /lookup
-├── aggregator.py     Executa adapters em paralelo
+├── main.py           FastAPI: /health, /sources, /auth/token, /lookup
+├── aggregator.py     Executa adapters em paralelo + cache TTL
 ├── audit.py          Log de auditoria LGPD
+├── cache.py          Cache in-memory TTL (LRU)
+├── ratelimit.py      Token-bucket por operator
+├── security.py       Emissão + verificação de JWT
+├── config.py         Settings via env vars (OSINT_*)
 ├── cpf.py            Validação algorítmica, normalização, máscara, região
 ├── models.py         Schemas Pydantic
 └── sources/          Adapters plugáveis
@@ -26,6 +30,26 @@ app/
     ├── cadunico.py             CAPTCHA — retorna URL manual
     └── trt3.py                 CAPTCHA — retorna URL manual
 ```
+
+### Segurança e operação
+
+| Recurso | Como funciona |
+|---|---|
+| **JWT** | `POST /auth/token` com `admin_token` emite Bearer JWT (HS256). `/lookup` exige `Authorization: Bearer ...`. Operator extraído do claim `sub`. |
+| **Cache TTL** | Chave = `cpf_digits + sources`. Cache hit retorna `cached: true` mas **ainda gera audit log** (accountability). LRU + TTL configurável. |
+| **Rate limit** | Token-bucket por operator. 429 + header `Retry-After` quando excedido. |
+
+### Configuração (env vars)
+
+| Var | Default | Descrição |
+|---|---|---|
+| `OSINT_JWT_SECRET` | `dev-secret-change-me` | Chave HS256 — **trocar em produção** |
+| `OSINT_JWT_ALGORITHM` | `HS256` | Algoritmo JWT |
+| `OSINT_JWT_TTL_MINUTES` | `60` | Validade do token |
+| `OSINT_ADMIN_TOKEN` | `dev-admin-token-change-me` | Segredo para emitir tokens — **trocar em produção** |
+| `OSINT_CACHE_TTL_SECONDS` | `3600` | TTL do cache por CPF |
+| `OSINT_CACHE_MAX_ENTRIES` | `1024` | Máximo de entradas no cache (LRU) |
+| `OSINT_RATE_LIMIT_PER_MINUTE` | `30` | Requisições/min por operator |
 
 ### Fontes implementadas
 
@@ -57,15 +81,22 @@ uvicorn app.main:app --reload
 # http://localhost:8000/docs  (Swagger)
 ```
 
-### Consulta via curl
+### Fluxo completo via curl
 
 ```bash
+# 1. Emitir token (admin_token vem da config)
+TOKEN=$(curl -s -X POST http://localhost:8000/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"operator":"investigador-001","admin_token":"dev-admin-token-change-me"}' \
+  | jq -r .access_token)
+
+# 2. Consultar CPF
 curl -X POST http://localhost:8000/lookup \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "cpf": "111.444.777-35",
     "purpose": "authorized_osint",
-    "operator": "investigador-001",
     "case_id": "CASE-2026-001"
   }'
 ```
@@ -80,6 +111,7 @@ curl -X POST http://localhost:8000/lookup \
   "purpose": "authorized_osint",
   "operator": "investigador-001",
   "case_id": "CASE-2026-001",
+  "cached": false,
   "results": [
     {
       "source": "validator",
@@ -128,11 +160,11 @@ pytest
 
 ## Roadmap (sugestões)
 
-- Cache com TTL por CPF para reduzir chamadas externas
-- Rate limiting por operador
-- Autenticação JWT no endpoint `/lookup`
 - Webhook quando resultado mudar (re-consulta agendada)
 - Adapter para API Serpro (oficial, paga, sem CAPTCHA)
+- Cache distribuído (Redis) para múltiplas instâncias
+- Rate limit distribuído para deploy horizontal
+- Refresh token / revogação por JTI
 
 ## Licença
 

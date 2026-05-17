@@ -31,14 +31,17 @@ def _build_logger() -> logging.Logger:
     return logger
 
 
-def record_lookup(req: LookupRequest, sources_consulted: list[str]) -> None:
+def record_lookup(
+    req: LookupRequest, operator: str, sources_consulted: list[str], *, cached: bool
+) -> None:
     entry = {
         "ts": datetime.now(timezone.utc).isoformat(),
         "event": "cpf_lookup",
         "cpf_masked": mask(req.cpf),
         "purpose": req.purpose.value,
-        "operator": req.operator,
+        "operator": operator,
         "case_id": req.case_id,
         "sources": sources_consulted,
+        "cached": cached,
     }
     _build_logger().info(json.dumps(entry, ensure_ascii=False))
