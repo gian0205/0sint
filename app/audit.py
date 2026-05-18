@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+from .config import settings
 from .cpf import mask
 from .models import LookupRequest
 
@@ -23,7 +24,8 @@ def _build_logger() -> logging.Logger:
     if logger.handlers:
         return logger
     logger.setLevel(logging.INFO)
-    log_path = Path("audit.log")
+    log_path = Path(settings.audit_log_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
     handler = RotatingFileHandler(log_path, maxBytes=5_000_000, backupCount=10, encoding="utf-8")
     handler.setFormatter(logging.Formatter("%(message)s"))
     logger.addHandler(handler)

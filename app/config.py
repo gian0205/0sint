@@ -18,5 +18,7 @@ class Settings(BaseSettings):
 
     rate_limit_per_minute: int = 30
 
+    audit_log_path: str = "audit.log"
+
 
 settings = Settings()

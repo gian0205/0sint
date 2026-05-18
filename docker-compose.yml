@@ -1,0 +1,29 @@
+services:
+  api:
+    build: .
+    image: 0sint-cpf-lookup:latest
+    container_name: 0sint-api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      # IMPORTANT: trocar JWT_SECRET e ADMIN_TOKEN em produção
+      OSINT_JWT_SECRET: ${OSINT_JWT_SECRET:?defina OSINT_JWT_SECRET}
+      OSINT_ADMIN_TOKEN: ${OSINT_ADMIN_TOKEN:?defina OSINT_ADMIN_TOKEN}
+      OSINT_JWT_TTL_MINUTES: ${OSINT_JWT_TTL_MINUTES:-60}
+      OSINT_CACHE_TTL_SECONDS: ${OSINT_CACHE_TTL_SECONDS:-3600}
+      OSINT_CACHE_MAX_ENTRIES: ${OSINT_CACHE_MAX_ENTRIES:-1024}
+      OSINT_RATE_LIMIT_PER_MINUTE: ${OSINT_RATE_LIMIT_PER_MINUTE:-30}
+      OSINT_AUDIT_LOG_PATH: /data/audit.log
+    volumes:
+      - audit_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  audit_data:
+    driver: local

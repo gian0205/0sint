@@ -170,6 +170,81 @@ class MinhaFonteSource(Source):
 pytest
 ```
 
+## Deploy no Coolify
+
+O projeto já vem com `Dockerfile` (multi-stage, non-root, healthcheck) e `docker-compose.yml`.
+
+### 1. Gerar segredos fortes
+
+```bash
+python -c "import secrets; print('OSINT_JWT_SECRET=' + secrets.token_urlsafe(48))"
+python -c "import secrets; print('OSINT_ADMIN_TOKEN=' + secrets.token_urlsafe(48))"
+```
+
+### 2. Criar o recurso no Coolify
+
+No painel do Coolify:
+
+1. **+ New Resource → Application**
+2. Source: **Git Repository** → cole a URL do repo e a branch (`claude/cpf-lookup-osint-OVhH5` ou `main` depois do merge)
+3. Build Pack: **Dockerfile** (Coolify detecta automaticamente)
+4. Port: **8000**
+5. Healthcheck Path: `/health`
+
+### 3. Variáveis de ambiente (Coolify UI → Environment Variables)
+
+| Key | Value | Obrigatório |
+|---|---|:-:|
+| `OSINT_JWT_SECRET` | string aleatória 48+ chars | ✅ |
+| `OSINT_ADMIN_TOKEN` | string aleatória 48+ chars | ✅ |
+| `OSINT_JWT_TTL_MINUTES` | `60` (ou outro) |   |
+| `OSINT_CACHE_TTL_SECONDS` | `3600` |   |
+| `OSINT_RATE_LIMIT_PER_MINUTE` | `30` |   |
+| `OSINT_AUDIT_LOG_PATH` | `/data/audit.log` | ✅ |
+
+### 4. Volume persistente (CRÍTICO para LGPD)
+
+O `audit.log` precisa **sobreviver a restarts/redeploys** — é sua trilha de compliance.
+
+Em Coolify → **Storage → + Add Persistent Storage**:
+- Source path (no container): `/data`
+- Name: `audit-data`
+
+Sem isso, cada redeploy apaga o histórico de auditoria.
+
+### 5. Deploy
+
+Clica **Deploy**. O Coolify:
+1. Clona o repo
+2. Builda o Dockerfile (multi-stage, ~80MB final)
+3. Sobe o container
+4. Configura SSL/proxy reverso automaticamente
+
+Quando subir, acesse `https://<seu-dominio>/` (UI HTML) ou `/docs` (Swagger).
+
+### 6. Verificação pós-deploy
+
+```bash
+# health
+curl https://<seu-dominio>/health
+
+# emitir token (use o ADMIN_TOKEN real)
+curl -X POST https://<seu-dominio>/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"operator":"prod-test","admin_token":"<seu-admin-token>"}'
+
+# verificar audit log persistido (via shell do container no Coolify)
+cat /data/audit.log
+```
+
+### Rodar local com docker-compose
+
+```bash
+cp .env.example .env
+# edite .env com segredos fortes
+docker compose up --build
+```
+
 ## Roadmap (sugestões)
 
 - Webhook quando resultado mudar (re-consulta agendada)
